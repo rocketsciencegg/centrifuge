@@ -43,16 +43,17 @@ func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	incTransportConnect(transportSSE)
 
 	var requestData []byte
-	if r.Method == http.MethodGet {
+	switch r.Method {
+	case http.MethodGet:
 		requestDataString := r.URL.Query().Get(connectUrlParam)
 		if requestDataString != "" {
 			requestData = []byte(requestDataString)
 		} else {
-			h.node.Log(NewLogEntry(LogLevelDebug, "no connect command", map[string]interface{}{}))
+			h.node.Log(NewLogEntry(LogLevelDebug, "no connect command", map[string]any{}))
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-	} else if r.Method == http.MethodPost {
+	case http.MethodPost:
 		maxBytesSize := h.config.MaxRequestBodySize
 		if maxBytesSize == 0 {
 			maxBytesSize = defaultMaxSSEBodySize
@@ -65,11 +66,11 @@ func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusRequestEntityTooLarge)
 				return
 			}
-			h.node.Log(NewLogEntry(LogLevelError, "error reading body", map[string]interface{}{"error": err.Error()}))
+			h.node.Log(NewLogEntry(LogLevelError, "error reading body", map[string]any{"error": err.Error()}))
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-	} else {
+	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
@@ -80,16 +81,16 @@ func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	c, closeFn, err := NewClient(r.Context(), h.node, transport)
 	if err != nil {
-		h.node.Log(NewLogEntry(LogLevelError, "error create client", map[string]interface{}{"error": err.Error(), "transport": "uni_sse"}))
+		h.node.Log(NewLogEntry(LogLevelError, "error create client", map[string]any{"error": err.Error(), "transport": "uni_sse"}))
 		return
 	}
 	defer func() { _ = closeFn() }()
 	defer close(transport.closedCh) // need to execute this after client closeFn.
 
 	if h.node.LogEnabled(LogLevelDebug) {
-		h.node.Log(NewLogEntry(LogLevelDebug, "client connection established", map[string]interface{}{"transport": transport.Name(), "client": c.ID()}))
+		h.node.Log(NewLogEntry(LogLevelDebug, "client connection established", map[string]any{"transport": transport.Name(), "client": c.ID()}))
 		defer func(started time.Time) {
-			h.node.Log(NewLogEntry(LogLevelDebug, "client connection completed", map[string]interface{}{"duration": time.Since(started), "transport": transport.Name(), "client": c.ID()}))
+			h.node.Log(NewLogEntry(LogLevelDebug, "client connection completed", map[string]any{"duration": time.Since(started), "transport": transport.Name(), "client": c.ID()}))
 		}(time.Now())
 	}
 
@@ -213,7 +214,7 @@ func (t *sseTransport) WriteMany(messages ...[]byte) error {
 	if t.closed {
 		return nil
 	}
-	for i := 0; i < len(messages); i++ {
+	for i := range messages {
 		select {
 		case t.messages <- messages[i]:
 		case <-t.closedCh:

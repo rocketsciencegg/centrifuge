@@ -230,7 +230,7 @@ func TestClientV2DisconnectNoPong(t *testing.T) {
 	done := make(chan struct{})
 	node.OnConnect(func(client *Client) {
 		client.OnDisconnect(func(event DisconnectEvent) {
-			require.Equal(t, DisconnectNoPong.Code, event.Disconnect.Code)
+			require.Equal(t, DisconnectNoPong.Code, event.Code)
 			close(done)
 		})
 	})
@@ -1301,7 +1301,7 @@ func TestClientSubscribeLast(t *testing.T) {
 	result := subscribeClient(t, client, "test")
 	require.Equal(t, uint64(0), result.Offset)
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		_, _ = node.Publish("test", []byte("{}"), WithHistory(10, time.Minute))
 	}
 
@@ -1334,7 +1334,7 @@ func newTestClientV2(t testing.TB, node *Node, userID string) *Client {
 	return client
 }
 
-func getJSONEncodedParams(t testing.TB, request interface{}) []byte {
+func getJSONEncodedParams(t testing.TB, request any) []byte {
 	paramsEncoder := protocol.NewJSONParamsEncoder()
 	params, err := paramsEncoder.Encode(request)
 	require.NoError(t, err)
@@ -1961,7 +1961,7 @@ func TestClientHistoryNoFilter(t *testing.T) {
 		cb(HistoryReply{}, nil)
 	})
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		_, _ = node.Publish("test", []byte(`{}`), WithHistory(10, time.Minute))
 	}
 
@@ -2001,7 +2001,7 @@ func TestClientHistoryWithLimit(t *testing.T) {
 		cb(HistoryReply{}, nil)
 	})
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		_, _ = node.Publish("test", []byte(`{}`), WithHistory(10, time.Minute))
 	}
 
@@ -2037,7 +2037,7 @@ func TestClientHistoryWithSinceAndLimit(t *testing.T) {
 	})
 
 	var pubRes PublishResult
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		pubRes, _ = node.Publish("test", []byte(`{}`), WithHistory(10, time.Minute))
 	}
 
@@ -2083,7 +2083,7 @@ func TestClientHistoryTakeover(t *testing.T) {
 		}, nil)
 	})
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		_, _ = node.Publish("test", []byte(`{}`), WithHistory(10, time.Minute))
 	}
 
@@ -2123,7 +2123,7 @@ func TestClientHistoryUnrecoverablePositionEpoch(t *testing.T) {
 		cb(HistoryReply{Result: &result}, nil)
 	})
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		_, _ = node.Publish("test", []byte(`{}`), WithHistory(10, time.Minute))
 	}
 
@@ -3411,7 +3411,7 @@ func TestConcurrentSameChannelSubscribe(t *testing.T) {
 	var subscribeErrors []string
 	var mu sync.Mutex
 
-	for i := 0; i < concurrency; i++ {
+	for range concurrency {
 		go func() {
 			defer wg.Done()
 			rwWrapper := testReplyWriterWrapper()
@@ -3497,7 +3497,7 @@ func TestSubscribeWithBufferedPublications(t *testing.T) {
 	rwWrapper := testReplyWriterWrapper()
 	go func() {
 		<-startPublishingCh
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			_, err := node.Publish("test1", []byte(`{}`), WithHistory(100, 60*time.Second))
 			require.NoError(t, err)
 		}
@@ -3691,7 +3691,7 @@ func TestClientOnStateSnapshot(t *testing.T) {
 	defer func() { _ = node.Shutdown(context.Background()) }()
 
 	node.OnConnect(func(client *Client) {
-		client.OnStateSnapshot(func() (interface{}, error) {
+		client.OnStateSnapshot(func() (any, error) {
 			return 1, nil
 		})
 	})
@@ -3909,7 +3909,7 @@ func TestClient_HandleCommandV2_NonAuthenticated(t *testing.T) {
 	require.False(t, ok)
 }
 
-func getCommandParams(t *testing.T, p interface{}) []byte {
+func getCommandParams(t *testing.T, p any) []byte {
 	t.Helper()
 	data, err := json.Marshal(p)
 	require.NoError(t, err)

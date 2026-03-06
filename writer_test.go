@@ -29,7 +29,7 @@ func newBenchmarkTransport() *benchmarkTransport {
 	}
 
 	buf := make([]byte, 512)
-	for i := 0; i < 512; i++ {
+	for i := range 512 {
 		buf[i] = 'a'
 	}
 
@@ -50,7 +50,7 @@ func (t *benchmarkTransport) inc(num int) {
 
 func (t *benchmarkTransport) writeCombined(items ...queue.Item) error {
 	buffers := make([][]byte, len(items))
-	for i := 0; i < len(items); i++ {
+	for i := range items {
 		buffers[i] = items[i].Data
 	}
 	_, err := t.f.Write(bytes.Join(buffers, []byte("\n")))
@@ -76,7 +76,7 @@ func (t *benchmarkTransport) close() error {
 
 func runWrite(w *writer, t *benchmarkTransport) {
 	go func() {
-		for j := 0; j < numQueueMessages; j++ {
+		for range numQueueMessages {
 			w.messages.Add(queue.Item{Data: t.buf})
 		}
 	}()
@@ -187,7 +187,7 @@ func TestWriterWriteMany(t *testing.T) {
 
 	maxMessagesInFrame := 4
 	numMessages := 4 * maxMessagesInFrame
-	for i := 0; i < numMessages; i++ {
+	for range numMessages {
 		disconnect := w.enqueue(queue.Item{Data: []byte("test")})
 		require.Nil(t, disconnect)
 	}
@@ -199,7 +199,7 @@ func TestWriterWriteMany(t *testing.T) {
 		w.run(10*time.Millisecond, maxMessagesInFrame)
 	}()
 
-	for i := 0; i < numMessages; i++ {
+	for range numMessages {
 		<-transport.ch
 	}
 
@@ -226,7 +226,7 @@ func TestWriterWriteRemaining(t *testing.T) {
 
 	maxMessagesInFrame := 4
 	numMessages := 4 * maxMessagesInFrame
-	for i := 0; i < numMessages; i++ {
+	for range numMessages {
 		disconnect := w.enqueue(queue.Item{Data: []byte("test")})
 		require.Nil(t, disconnect)
 	}
@@ -236,7 +236,7 @@ func TestWriterWriteRemaining(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	for i := 0; i < numMessages; i++ {
+	for range numMessages {
 		<-transport.ch
 	}
 

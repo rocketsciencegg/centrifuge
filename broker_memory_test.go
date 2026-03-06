@@ -205,7 +205,7 @@ func TestMemoryBrokerRecover(t *testing.T) {
 	e := testMemoryBroker()
 	defer func() { _ = e.node.Shutdown(context.Background()) }()
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_, err := e.Publish("channel", testPublicationData(), PublishOptions{HistorySize: 10, HistoryTTL: 2 * time.Second})
 		require.NoError(t, err)
 	}
@@ -226,7 +226,7 @@ func TestMemoryBrokerRecover(t *testing.T) {
 	require.Equal(t, uint64(4), pubs[1].Offset)
 	require.Equal(t, uint64(5), pubs[2].Offset)
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		_, err := e.Publish("channel", testPublicationData(), PublishOptions{HistorySize: 10, HistoryTTL: 2 * time.Second})
 		require.NoError(t, err)
 	}
@@ -298,7 +298,7 @@ func BenchmarkMemoryHistory_1Ch(b *testing.B) {
 	defer func() { _ = e.node.Shutdown(context.Background()) }()
 
 	rawData := protocol.Raw("{}")
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		_, _ = e.Publish("channel", rawData, PublishOptions{HistorySize: 4, HistoryTTL: 300 * time.Second})
 	}
 	b.ResetTimer()

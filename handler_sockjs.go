@@ -130,7 +130,7 @@ func NewSockjsHandler(node *Node, config SockjsConfig) *SockjsHandler {
 	s.handlerV1 = handlerV1
 
 	// Disable heartbeats for ProtocolVersion2 if we are using app-level pings.
-	if s.config.PingPongConfig.PingInterval >= 0 {
+	if s.config.PingInterval >= 0 {
 		options.HeartbeatDelay = 0
 	}
 	s.handlerV2 = sockjs.NewHandler(config.HandlerPrefix, options, s.sockJSHandlerV2)
@@ -148,7 +148,7 @@ func (s *SockjsHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 			case "v2":
 				protoVersion = ProtocolVersion2
 			default:
-				s.node.logger.log(newLogEntry(LogLevelInfo, "unknown protocol version", map[string]interface{}{"transport": transportSockJS, "version": queryProtocolVersion}))
+				s.node.logger.log(newLogEntry(LogLevelInfo, "unknown protocol version", map[string]any{"transport": transportSockJS, "version": queryProtocolVersion}))
 				http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 				return
 			}
@@ -209,15 +209,15 @@ func (s *SockjsHandler) handleSession(protoVersion ProtocolVersion, sess sockjs.
 		defer close(ctxCh)
 		c, closeFn, err := NewClient(cancelctx.New(sess.Request().Context(), ctxCh), s.node, transport)
 		if err != nil {
-			s.node.logger.log(newLogEntry(LogLevelError, "error creating client", map[string]interface{}{"transport": transportSockJS}))
+			s.node.logger.log(newLogEntry(LogLevelError, "error creating client", map[string]any{"transport": transportSockJS}))
 			return
 		}
 		defer func() { _ = closeFn() }()
 
 		if s.node.LogEnabled(LogLevelDebug) {
-			s.node.logger.log(newLogEntry(LogLevelDebug, "client connection established", map[string]interface{}{"client": c.ID(), "transport": transportSockJS}))
+			s.node.logger.log(newLogEntry(LogLevelDebug, "client connection established", map[string]any{"client": c.ID(), "transport": transportSockJS}))
 			defer func(started time.Time) {
-				s.node.logger.log(newLogEntry(LogLevelDebug, "client connection completed", map[string]interface{}{"client": c.ID(), "transport": transportSockJS, "duration": time.Since(started)}))
+				s.node.logger.log(newLogEntry(LogLevelDebug, "client connection completed", map[string]any{"client": c.ID(), "transport": transportSockJS, "duration": time.Since(started)}))
 			}(time.Now())
 		}
 

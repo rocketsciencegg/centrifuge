@@ -440,7 +440,7 @@ func TestWebsocketHandlerConcurrentConnections(t *testing.T) {
 	numConns := 100
 
 	var conns []*websocket.Conn
-	for i := 0; i < numConns; i++ {
+	for i := range numConns {
 		conn := newRealConnJSONV2(t, "test"+strconv.Itoa(i), url)
 		conns = append(conns, conn)
 	}
@@ -452,7 +452,7 @@ func TestWebsocketHandlerConcurrentConnections(t *testing.T) {
 
 	var wg sync.WaitGroup
 
-	for i := 0; i < numConns; i++ {
+	for i := range numConns {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
@@ -469,8 +469,8 @@ func TestWebsocketHandlerConcurrentConnections(t *testing.T) {
 				if err != nil {
 					require.Fail(t, err.Error())
 				}
-				messages := bytes.Split(data, []byte("\n"))
-				for _, msg := range messages {
+				messages := bytes.SplitSeq(data, []byte("\n"))
+				for msg := range messages {
 					if string(msg) == "{}" {
 						continue
 					}
@@ -515,7 +515,7 @@ func TestWebsocketHandlerConnectionsBroadcast(t *testing.T) {
 	numConns := 100
 
 	var conns []*websocket.Conn
-	for i := 0; i < numConns; i++ {
+	for range numConns {
 		conn := newRealConnJSONV2(t, "test", url)
 		conns = append(conns, conn)
 	}
@@ -534,7 +534,7 @@ func TestWebsocketHandlerConnectionsBroadcast(t *testing.T) {
 
 	var wg sync.WaitGroup
 
-	for i := 0; i < numConns; i++ {
+	for i := range numConns {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
@@ -546,8 +546,8 @@ func TestWebsocketHandlerConnectionsBroadcast(t *testing.T) {
 				if err != nil {
 					require.Fail(t, err.Error())
 				}
-				messages := bytes.Split(data, []byte("\n"))
-				for _, msg := range messages {
+				messages := bytes.SplitSeq(data, []byte("\n"))
+				for msg := range messages {
 					if strings.Contains(string(msg), "payload") {
 						payloadMessage = msg
 						break LOOP
@@ -616,7 +616,6 @@ func TestCheckSameHostOrigin(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
