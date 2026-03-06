@@ -1,6 +1,6 @@
 module github.com/centrifugal/centrifuge
 
-go 1.18
+go 1.26.0
 
 require (
 	github.com/FZambia/eagle v0.0.2
@@ -13,7 +13,7 @@ require (
 	github.com/segmentio/encoding v0.3.6
 	github.com/stretchr/testify v1.8.1
 	golang.org/x/sync v0.1.0
-	google.golang.org/protobuf v1.28.1
+	google.golang.org/protobuf v1.33.0
 )
 
 require (
