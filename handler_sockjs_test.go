@@ -16,7 +16,7 @@ import (
 
 func sockjsData(data []byte) []byte {
 	quoted, _ := json.Marshal(string(data))
-	return []byte(fmt.Sprintf("[%s]", string(quoted)))
+	return fmt.Appendf(nil, "[%s]", string(quoted))
 }
 
 func TestSockjsHandler(t *testing.T) {

@@ -2,6 +2,7 @@ package centrifuge
 
 import (
 	"context"
+	"maps"
 	"sync"
 )
 
@@ -116,9 +117,7 @@ func (h *presenceHub) get(ch string) (map[string]*ClientInfo, error) {
 	}
 
 	data := make(map[string]*ClientInfo, len(presence))
-	for k, v := range presence {
-		data[k] = v
-	}
+	maps.Copy(data, presence)
 	return data, nil
 }
 

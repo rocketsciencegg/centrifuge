@@ -49,7 +49,7 @@ const numPubLocks = 4096
 // NewMemoryBroker initializes MemoryBroker.
 func NewMemoryBroker(n *Node, c MemoryBrokerConfig) (*MemoryBroker, error) {
 	pubLocks := make(map[int]*sync.Mutex, numPubLocks)
-	for i := 0; i < numPubLocks; i++ {
+	for i := range numPubLocks {
 		pubLocks[i] = &sync.Mutex{}
 	}
 	b := &MemoryBroker{

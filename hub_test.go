@@ -227,14 +227,14 @@ func TestHubDisconnect(t *testing.T) {
 
 	client.eventHub.disconnectHandler = func(e DisconnectEvent) {
 		defer wg.Done()
-		require.False(t, e.Disconnect.Reconnect)
-		require.Equal(t, DisconnectForceNoReconnect.Code, e.Disconnect.Code)
+		require.False(t, e.Reconnect)
+		require.Equal(t, DisconnectForceNoReconnect.Code, e.Code)
 	}
 
 	clientWithReconnect.eventHub.disconnectHandler = func(e DisconnectEvent) {
 		defer wg.Done()
-		require.True(t, e.Disconnect.Reconnect)
-		require.Equal(t, DisconnectForceReconnect.Code, e.Disconnect.Code)
+		require.True(t, e.Reconnect)
+		require.Equal(t, DisconnectForceReconnect.Code, e.Code)
 	}
 
 	// Disconnect not existed user.
@@ -683,15 +683,15 @@ func TestHubSharding(t *testing.T) {
 	numChannels := numHubShards * 10
 
 	channels := make([]string, 0, numChannels)
-	for i := 0; i < numChannels; i++ {
+	for i := range numChannels {
 		channels = append(channels, "ch"+strconv.Itoa(i))
 	}
 
 	n := defaultTestNode()
 	defer func() { _ = n.Shutdown(context.Background()) }()
 
-	for j := 0; j < 2; j++ { // two connections from the same user.
-		for i := 0; i < numUsers; i++ {
+	for range 2 { // two connections from the same user.
+		for i := range numUsers {
 			c, err := newClient(context.Background(), n, newTestTransport(func() {}))
 			require.NoError(t, err)
 			c.user = strconv.Itoa(i)
@@ -728,11 +728,11 @@ func BenchmarkHub_Contention(b *testing.B) {
 	var clients []*Client
 	var channels []string
 
-	for i := 0; i < numChannels; i++ {
+	for i := range numChannels {
 		channels = append(channels, "ch"+strconv.Itoa(i))
 	}
 
-	for i := 0; i < numClients; i++ {
+	for range numClients {
 		c := newTestConnectedClientWithTransport(b, context.Background(), n, newTestTransport(func() {}), "12")
 		_ = n.hub.add(c)
 		clients = append(clients, c)
@@ -752,11 +752,9 @@ func BenchmarkHub_Contention(b *testing.B) {
 		for pb.Next() {
 			i++
 			var wg sync.WaitGroup
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				_ = n.hub.BroadcastPublication(channels[(i+numChannels/2)%numChannels], pub, streamPosition)
-			}()
+			})
 			_, _ = n.hub.addSub(channels[i%numChannels], clients[i%numClients])
 			wg.Wait()
 		}
@@ -786,13 +784,13 @@ func BenchmarkHub_MassiveBroadcast(b *testing.B) {
 			numChannels := 64
 			channels := make([]string, 0, numChannels)
 
-			for i := 0; i < numChannels; i++ {
+			for i := range numChannels {
 				channels = append(channels, "broadcast"+strconv.Itoa(i))
 			}
 
 			sink := make(chan []byte, 1024)
 
-			for i := 0; i < numSubscribers; i++ {
+			for range numSubscribers {
 				t := newTestTransport(func() {})
 				t.setSink(sink)
 				c := newTestConnectedClientWithTransport(b, context.Background(), n, t, "12")
@@ -805,9 +803,7 @@ func BenchmarkHub_MassiveBroadcast(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				var wg sync.WaitGroup
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
+				wg.Go(func() {
 					j := 0
 					for {
 						<-sink
@@ -816,7 +812,7 @@ func BenchmarkHub_MassiveBroadcast(b *testing.B) {
 							break
 						}
 					}
-				}()
+				})
 				_ = n.hub.BroadcastPublication(channels[i%numChannels], pub, streamPosition)
 				wg.Wait()
 			}
@@ -837,7 +833,7 @@ func TestHubBroadcastInappropriateProtocol_Publication(t *testing.T) {
 	testFunc := func(client *Client) {
 		done := make(chan struct{})
 		client.eventHub.disconnectHandler = func(e DisconnectEvent) {
-			require.Equal(t, DisconnectInappropriateProtocol.Code, e.Disconnect.Code)
+			require.Equal(t, DisconnectInappropriateProtocol.Code, e.Code)
 			close(done)
 		}
 		err := n.hub.BroadcastPublication("test_channel", &Publication{
@@ -871,7 +867,7 @@ func TestHubBroadcastInappropriateProtocol_Join(t *testing.T) {
 	testFunc := func(client *Client) {
 		done := make(chan struct{})
 		client.eventHub.disconnectHandler = func(e DisconnectEvent) {
-			require.Equal(t, DisconnectInappropriateProtocol.Code, e.Disconnect.Code)
+			require.Equal(t, DisconnectInappropriateProtocol.Code, e.Code)
 			close(done)
 		}
 		err := n.hub.broadcastJoin("test_channel", &ClientInfo{
@@ -905,7 +901,7 @@ func TestHubBroadcastInappropriateProtocol_Leave(t *testing.T) {
 	testFunc := func(client *Client) {
 		done := make(chan struct{})
 		client.eventHub.disconnectHandler = func(e DisconnectEvent) {
-			require.Equal(t, DisconnectInappropriateProtocol.Code, e.Disconnect.Code)
+			require.Equal(t, DisconnectInappropriateProtocol.Code, e.Code)
 			close(done)
 		}
 		err := n.hub.broadcastLeave("test_channel", &ClientInfo{

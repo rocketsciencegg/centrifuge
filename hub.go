@@ -3,6 +3,8 @@ package centrifuge
 import (
 	"context"
 	"io"
+	"maps"
+	"slices"
 	"sync"
 
 	"github.com/centrifugal/protocol"
@@ -23,7 +25,7 @@ func newHub(logger *logger) *Hub {
 	h := &Hub{
 		sessions: map[string]*Client{},
 	}
-	for i := 0; i < numHubShards; i++ {
+	for i := range numHubShards {
 		h.connShards[i] = newConnShard()
 		h.subShards[i] = newSubShard(logger)
 	}
@@ -47,7 +49,7 @@ func (h *Hub) shutdown(ctx context.Context) error {
 
 	var wg sync.WaitGroup
 	wg.Add(numHubShards)
-	for i := 0; i < numHubShards; i++ {
+	for i := range numHubShards {
 		go func(i int) {
 			defer wg.Done()
 			err := h.connShards[i].shutdown(ctx, sem)
@@ -89,9 +91,7 @@ func (h *Hub) Connections() map[string]*Client {
 	conns := make(map[string]*Client)
 	for _, shard := range h.connShards {
 		shard.mu.RLock()
-		for clientID, c := range shard.conns {
-			conns[clientID] = c
-		}
+		maps.Copy(conns, shard.conns)
 		shard.mu.RUnlock()
 	}
 	return conns
@@ -153,7 +153,7 @@ func (h *Hub) NumSubscribers(ch string) int {
 // Channels returns a slice of all active channels.
 func (h *Hub) Channels() []string {
 	channels := make([]string, 0, h.NumChannels())
-	for i := 0; i < numHubShards; i++ {
+	for i := range numHubShards {
 		channels = append(channels, h.subShards[i].Channels()...)
 	}
 	return channels
@@ -162,7 +162,7 @@ func (h *Hub) Channels() []string {
 // NumClients returns total number of client connections.
 func (h *Hub) NumClients() int {
 	var total int
-	for i := 0; i < numHubShards; i++ {
+	for i := range numHubShards {
 		total += h.connShards[i].NumClients()
 	}
 	return total
@@ -171,7 +171,7 @@ func (h *Hub) NumClients() int {
 // NumUsers returns a number of unique users connected.
 func (h *Hub) NumUsers() int {
 	var total int
-	for i := 0; i < numHubShards; i++ {
+	for i := range numHubShards {
 		// users do not overlap among shards.
 		total += h.connShards[i].NumUsers()
 	}
@@ -181,7 +181,7 @@ func (h *Hub) NumUsers() int {
 // NumSubscriptions returns a total number of subscriptions.
 func (h *Hub) NumSubscriptions() int {
 	var total int
-	for i := 0; i < numHubShards; i++ {
+	for i := range numHubShards {
 		// users do not overlap among shards.
 		total += h.subShards[i].NumSubscriptions()
 	}
@@ -191,7 +191,7 @@ func (h *Hub) NumSubscriptions() int {
 // NumChannels returns a total number of different channels.
 func (h *Hub) NumChannels() int {
 	var total int
-	for i := 0; i < numHubShards; i++ {
+	for i := range numHubShards {
 		// channels do not overlap among shards.
 		total += h.subShards[i].NumChannels()
 	}
@@ -265,12 +265,7 @@ func (h *connShard) shutdown(ctx context.Context, sem chan struct{}) error {
 }
 
 func stringInSlice(str string, slice []string) bool {
-	for _, s := range slice {
-		if s == str {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, str)
 }
 
 func (h *connShard) subscribe(user string, ch string, clientID string, sessionID string, opts ...SubscribeOption) error {
@@ -675,7 +670,7 @@ func (h *subShard) broadcastPublication(channel string, pub *protocol.Publicatio
 	}
 	if jsonEncodeErr != nil && h.logger.enabled(LogLevelWarn) {
 		// Log that we had clients with inappropriate protocol, and point to the first such client.
-		h.logger.log(NewLogEntry(LogLevelWarn, "inappropriate protocol publication", map[string]interface{}{
+		h.logger.log(NewLogEntry(LogLevelWarn, "inappropriate protocol publication", map[string]any{
 			"channel": channel,
 			"user":    jsonEncodeErr.user,
 			"client":  jsonEncodeErr.client,
@@ -825,7 +820,7 @@ func (h *subShard) broadcastJoin(channel string, join *protocol.Join) error {
 	}
 	if jsonEncodeErr != nil && h.logger.enabled(LogLevelWarn) {
 		// Log that we had clients with inappropriate protocol, and point to the first such client.
-		h.logger.log(NewLogEntry(LogLevelWarn, "inappropriate protocol join", map[string]interface{}{
+		h.logger.log(NewLogEntry(LogLevelWarn, "inappropriate protocol join", map[string]any{
 			"channel": channel,
 			"user":    jsonEncodeErr.user,
 			"client":  jsonEncodeErr.client,
@@ -975,7 +970,7 @@ func (h *subShard) broadcastLeave(channel string, leave *protocol.Leave) error {
 	}
 	if jsonEncodeErr != nil && h.logger.enabled(LogLevelWarn) {
 		// Log that we had clients with inappropriate protocol, and point to the first such client.
-		h.logger.log(NewLogEntry(LogLevelWarn, "inappropriate protocol leave", map[string]interface{}{
+		h.logger.log(NewLogEntry(LogLevelWarn, "inappropriate protocol leave", map[string]any{
 			"channel": channel,
 			"user":    jsonEncodeErr.user,
 			"client":  jsonEncodeErr.client,

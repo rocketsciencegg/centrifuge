@@ -125,7 +125,7 @@ func New(c Config) (*Node, error) {
 	uid := uidObj.String()
 
 	subLocks := make(map[int]*sync.Mutex, numSubLocks)
-	for i := 0; i < numSubLocks; i++ {
+	for i := range numSubLocks {
 		subLocks[i] = &sync.Mutex{}
 	}
 
@@ -227,12 +227,12 @@ func (n *Node) Run() error {
 	}
 	err := n.initMetrics()
 	if err != nil {
-		n.logger.log(newLogEntry(LogLevelError, "error on init metrics", map[string]interface{}{"error": err.Error()}))
+		n.logger.log(newLogEntry(LogLevelError, "error on init metrics", map[string]any{"error": err.Error()}))
 		return err
 	}
 	err = n.pubNode("")
 	if err != nil {
-		n.logger.log(newLogEntry(LogLevelError, "error publishing node control command", map[string]interface{}{"error": err.Error()}))
+		n.logger.log(newLogEntry(LogLevelError, "error publishing node control command", map[string]any{"error": err.Error()}))
 		return err
 	}
 	go n.sendNodePing()
@@ -361,7 +361,7 @@ func (n *Node) sendNodePing() {
 		case <-time.After(nodeInfoPublishInterval):
 			err := n.pubNode("")
 			if err != nil {
-				n.logger.log(newLogEntry(LogLevelError, "error publishing node control command", map[string]interface{}{"error": err.Error()}))
+				n.logger.log(newLogEntry(LogLevelError, "error publishing node control command", map[string]any{"error": err.Error()}))
 			}
 		}
 	}
@@ -542,10 +542,8 @@ func (n *Node) Survey(ctx context.Context, op string, data []byte, toNodeID stri
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(1)
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for {
 			select {
 			case resp := <-surveyChan:
@@ -557,7 +555,7 @@ func (n *Node) Survey(ctx context.Context, op string, data []byte, toNodeID stri
 				return
 			}
 		}
-	}()
+	})
 
 	if needDistributedPublish {
 		cmd := &controlpb.Command{
@@ -637,7 +635,7 @@ func (n *Node) handleControl(data []byte) error {
 
 	cmd, err := n.controlDecoder.DecodeCommand(data)
 	if err != nil {
-		n.logger.log(newLogEntry(LogLevelError, "error decoding control command", map[string]interface{}{"error": err.Error()}))
+		n.logger.log(newLogEntry(LogLevelError, "error decoding control command", map[string]any{"error": err.Error()}))
 		return err
 	}
 
@@ -654,7 +652,7 @@ func (n *Node) handleControl(data []byte) error {
 	case controlpb.Command_NODE:
 		cmd, err := n.controlDecoder.DecodeNode(params)
 		if err != nil {
-			n.logger.log(newLogEntry(LogLevelError, "error decoding node control params", map[string]interface{}{"error": err.Error()}))
+			n.logger.log(newLogEntry(LogLevelError, "error decoding node control params", map[string]any{"error": err.Error()}))
 			return err
 		}
 		return n.nodeCmd(cmd)
@@ -663,14 +661,14 @@ func (n *Node) handleControl(data []byte) error {
 	case controlpb.Command_UNSUBSCRIBE:
 		cmd, err := n.controlDecoder.DecodeUnsubscribe(params)
 		if err != nil {
-			n.logger.log(newLogEntry(LogLevelError, "error decoding unsubscribe control params", map[string]interface{}{"error": err.Error()}))
+			n.logger.log(newLogEntry(LogLevelError, "error decoding unsubscribe control params", map[string]any{"error": err.Error()}))
 			return err
 		}
 		return n.hub.unsubscribe(cmd.User, cmd.Channel, Unsubscribe{Code: cmd.Code, Reason: cmd.Reason}, cmd.Client, cmd.Session)
 	case controlpb.Command_SUBSCRIBE:
 		cmd, err := n.controlDecoder.DecodeSubscribe(params)
 		if err != nil {
-			n.logger.log(newLogEntry(LogLevelError, "error decoding subscribe control params", map[string]interface{}{"error": err.Error()}))
+			n.logger.log(newLogEntry(LogLevelError, "error decoding subscribe control params", map[string]any{"error": err.Error()}))
 			return err
 		}
 		var recoverSince *StreamPosition
@@ -681,40 +679,40 @@ func (n *Node) handleControl(data []byte) error {
 	case controlpb.Command_DISCONNECT:
 		cmd, err := n.controlDecoder.DecodeDisconnect(params)
 		if err != nil {
-			n.logger.log(newLogEntry(LogLevelError, "error decoding disconnect control params", map[string]interface{}{"error": err.Error()}))
+			n.logger.log(newLogEntry(LogLevelError, "error decoding disconnect control params", map[string]any{"error": err.Error()}))
 			return err
 		}
 		return n.hub.disconnect(cmd.User, Disconnect{Code: cmd.Code, Reason: cmd.Reason, Reconnect: cmd.Reconnect}, cmd.Client, cmd.Session, cmd.Whitelist)
 	case controlpb.Command_SURVEY_REQUEST:
 		cmd, err := n.controlDecoder.DecodeSurveyRequest(params)
 		if err != nil {
-			n.logger.log(newLogEntry(LogLevelError, "error decoding survey request control params", map[string]interface{}{"error": err.Error()}))
+			n.logger.log(newLogEntry(LogLevelError, "error decoding survey request control params", map[string]any{"error": err.Error()}))
 			return err
 		}
 		return n.handleSurveyRequest(uid, cmd)
 	case controlpb.Command_SURVEY_RESPONSE:
 		cmd, err := n.controlDecoder.DecodeSurveyResponse(params)
 		if err != nil {
-			n.logger.log(newLogEntry(LogLevelError, "error decoding survey response control params", map[string]interface{}{"error": err.Error()}))
+			n.logger.log(newLogEntry(LogLevelError, "error decoding survey response control params", map[string]any{"error": err.Error()}))
 			return err
 		}
 		return n.handleSurveyResponse(uid, cmd)
 	case controlpb.Command_NOTIFICATION:
 		cmd, err := n.controlDecoder.DecodeNotification(params)
 		if err != nil {
-			n.logger.log(newLogEntry(LogLevelError, "error decoding notification control params", map[string]interface{}{"error": err.Error()}))
+			n.logger.log(newLogEntry(LogLevelError, "error decoding notification control params", map[string]any{"error": err.Error()}))
 			return err
 		}
 		return n.handleNotification(uid, cmd)
 	case controlpb.Command_REFRESH:
 		cmd, err := n.controlDecoder.DecodeRefresh(params)
 		if err != nil {
-			n.logger.log(newLogEntry(LogLevelError, "error decoding refresh control params", map[string]interface{}{"error": err.Error()}))
+			n.logger.log(newLogEntry(LogLevelError, "error decoding refresh control params", map[string]any{"error": err.Error()}))
 			return err
 		}
 		return n.hub.refresh(cmd.User, cmd.Client, cmd.Session, WithRefreshExpired(cmd.Expired), WithRefreshExpireAt(cmd.ExpireAt), WithRefreshInfo(cmd.Info))
 	default:
-		n.logger.log(newLogEntry(LogLevelError, "unknown control message method", map[string]interface{}{"method": method}))
+		n.logger.log(newLogEntry(LogLevelError, "unknown control message method", map[string]any{"method": method}))
 		return fmt.Errorf("control method not found: %d", method)
 	}
 }
@@ -913,7 +911,7 @@ func (n *Node) pubNode(nodeID string) error {
 
 	err := n.nodeCmd(node)
 	if err != nil {
-		n.logger.log(newLogEntry(LogLevelError, "error handling node command", map[string]interface{}{"error": err.Error()}))
+		n.logger.log(newLogEntry(LogLevelError, "error handling node command", map[string]any{"error": err.Error()}))
 	}
 
 	return n.publishControl(cmd, nodeID)
@@ -1216,7 +1214,7 @@ func (n *Node) Presence(ch string) (PresenceResult, error) {
 	}
 	incActionCount("presence")
 	if n.config.UseSingleFlight {
-		result, err, _ := presenceGroup.Do(ch, func() (interface{}, error) {
+		result, err, _ := presenceGroup.Do(ch, func() (any, error) {
 			return n.presence(ch)
 		})
 		return result.(PresenceResult), err
@@ -1302,7 +1300,7 @@ func (n *Node) PresenceStats(ch string) (PresenceStatsResult, error) {
 	}
 	incActionCount("presence_stats")
 	if n.config.UseSingleFlight {
-		result, err, _ := presenceStatsGroup.Do(ch, func() (interface{}, error) {
+		result, err, _ := presenceStatsGroup.Do(ch, func() (any, error) {
 			return n.presenceStats(ch)
 		})
 		return result.(PresenceStatsResult), err
@@ -1370,7 +1368,7 @@ func (n *Node) History(ch string, opts ...HistoryOption) (HistoryResult, error) 
 		builder.WriteString(strconv.FormatBool(historyOpts.Reverse))
 		key := builder.String()
 
-		result, err, _ := historyGroup.Do(key, func() (interface{}, error) {
+		result, err, _ := historyGroup.Do(key, func() (any, error) {
 			return n.history(ch, historyOpts)
 		})
 		return result.(HistoryResult), err
