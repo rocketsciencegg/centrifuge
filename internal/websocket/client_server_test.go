@@ -658,9 +658,9 @@ func TestHost(t *testing.T) {
 
 		var gotAddr string
 		dialer := Dialer{
-			NetDialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			NetDial: func(network, addr string) (net.Conn, error) {
 				gotAddr = addr
-				return (&net.Dialer{}).DialContext(ctx, network, addrs[tt.server])
+				return net.Dial(network, addrs[tt.server])
 			},
 			TLSClientConfig: tlsConfig,
 		}
@@ -698,7 +698,7 @@ func TestHost(t *testing.T) {
 		// Confirm that net/http has same result
 
 		transport := &http.Transport{
-			DialContext:     dialer.NetDialContext,
+			Dial:            dialer.NetDial,
 			TLSClientConfig: dialer.TLSClientConfig,
 		}
 		req, _ := http.NewRequest(http.MethodGet, httpProtos[tt.server]+tt.url+"/", nil)
