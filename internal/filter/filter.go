@@ -7,8 +7,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/centrifugal/centrifuge/internal/bpool"
-
 	"github.com/centrifugal/protocol"
 	"github.com/quagmt/udecimal"
 )
@@ -196,9 +194,13 @@ func Validate(f *protocol.FilterNode) error {
 }
 
 // Hash computes filter hash.
-func Hash(f *protocol.FilterNode) [32]byte {
-	bb := bpool.GetByteBuffer(f.SizeVT())
-	defer bpool.PutByteBuffer(bb)
-	n, _ := f.MarshalToVT(bb.B)    // get canonical hash.
-	return sha256.Sum256(bb.B[:n]) // SHA-256 hash.
+func Hash(f *protocol.FilterNode) ([32]byte, error) {
+	if f == nil {
+		return [32]byte{}, errors.New("cannot hash a nil filter")
+	}
+	encoded, err := f.MarshalCF()
+	if err != nil {
+		return [32]byte{}, err
+	}
+	return sha256.Sum256(encoded), nil
 }

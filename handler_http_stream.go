@@ -62,12 +62,12 @@ func (h *HTTPStreamHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		protocolType = ProtocolTypeProtobuf
 	}
 
+	maxBytesSize := h.config.MaxRequestBodySize
+	if maxBytesSize == 0 {
+		maxBytesSize = defaultMaxHTTPStreamingBodySize
+	}
 	var requestData []byte
 	if r.Method == http.MethodPost {
-		maxBytesSize := h.config.MaxRequestBodySize
-		if maxBytesSize == 0 {
-			maxBytesSize = defaultMaxHTTPStreamingBodySize
-		}
 		r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytesSize))
 		var err error
 		requestData, err = io.ReadAll(r.Body)
@@ -120,7 +120,7 @@ func (h *HTTPStreamHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rc := http.NewResponseController(w)
 
 	reader := readerpool.GetBytesReader(requestData)
-	_ = HandleReadFrame(c, reader)
+	_ = handleReadFrame(c, reader, maxBytesSize)
 	readerpool.PutBytesReader(reader)
 
 	sendAck := func() {

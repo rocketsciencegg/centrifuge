@@ -1577,9 +1577,9 @@ func testReplyWriterWrapper() *sliceReplyWriter {
 	}
 	wrapper.rw = &replyWriter{
 		write: func(rep *protocol.Reply) {
-			d, _ := rep.MarshalVT()
+			d, _ := rep.MarshalCF()
 			var r protocol.Reply
-			_ = r.UnmarshalVT(d)
+			_ = r.UnmarshalCF(d)
 			wrapper.replies = append(wrapper.replies, &r)
 		},
 	}
@@ -4318,7 +4318,7 @@ func BenchmarkClientRPC(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		decoder := protocol.GetStreamCommandDecoder(protocol.TypeProtobuf, bytes.NewReader(frame))
+		decoder := protocol.GetStreamCommandDecoderLimited(protocol.TypeProtobuf, bytes.NewReader(frame), 1<<20)
 		cmd, cmdProtocolSize, err := decoder.Decode()
 		require.NoError(b, err)
 		client.HandleCommand(cmd, cmdProtocolSize)

@@ -375,13 +375,13 @@ func (c *Client) ConnectNoErrorToDisconnect(req ConnectRequest) error {
 // so prefer using Connect or ConnectNoErrorToDisconnect methods until necessary.
 func (c *Client) ProtocolConnect(req *protocol.ConnectRequest) {
 	// unidirectionalConnect never returns errors when errorToDisconnect is true.
-	_ = c.unidirectionalConnect(req, req.SizeVT(), true)
+	_ = c.unidirectionalConnect(req, req.SizeCF(), true)
 }
 
 // ProtocolConnectNoErrorToDisconnect accepts protocol.ConnectRequest directly. It adds dependency to
 // protocol package, so prefer ConnectNoErrorToDisconnect methods until necessary.
 func (c *Client) ProtocolConnectNoErrorToDisconnect(req *protocol.ConnectRequest) error {
-	return c.unidirectionalConnect(req, req.SizeVT(), false)
+	return c.unidirectionalConnect(req, req.SizeCF(), false)
 }
 
 func (c *Client) getDisconnectPushReply(d Disconnect) ([]byte, error) {
@@ -3002,9 +3002,14 @@ func (c *Client) subscribeCmd(req *protocol.SubscribeRequest, reply SubscribeRep
 			c.node.logger.log(newLogEntry(LogLevelInfo, "invalid tags filter", map[string]any{"channel": channel, "user": c.user, "client": c.uid}))
 			return errorDisconnectContext(ErrorBadRequest, nil)
 		}
+		hash, err := filter.Hash(req.Tf)
+		if err != nil {
+			c.node.logger.log(newLogEntry(LogLevelInfo, "invalid tags filter", map[string]any{"channel": channel, "user": c.user, "client": c.uid, "error": err}))
+			return errorDisconnectContext(ErrorBadRequest, nil)
+		}
 		sub.tagsFilter = &tagsFilter{
 			filter: req.Tf,
-			hash:   filter.Hash(req.Tf),
+			hash:   hash,
 		}
 	}
 

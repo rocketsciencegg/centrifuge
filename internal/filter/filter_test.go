@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"sync"
 	"testing"
@@ -421,7 +422,7 @@ func BenchmarkFilter10kCachedN(b *testing.B) {
 			for i := 0; i < subscribers; i++ {
 				idx := i % n
 				subs[i] = buildComplexFilterVariant(idx)
-				subHashes[i] = Hash(subs[i])
+				subHashes[i] = mustHash(b, subs[i])
 			}
 
 			b.ReportAllocs()
@@ -464,7 +465,7 @@ func BenchmarkFilter10kCachedN_SyncPoolWithClear(b *testing.B) {
 			for i := 0; i < subscribers; i++ {
 				idx := i % n
 				subs[i] = buildComplexFilterVariant(idx)
-				subHashes[i] = Hash(subs[i])
+				subHashes[i] = mustHash(b, subs[i])
 			}
 
 			b.ReportAllocs()
@@ -551,7 +552,7 @@ func BenchmarkFilter10kCachedN_SyncPoolSized(b *testing.B) {
 			for i := 0; i < subscribers; i++ {
 				idx := i % n
 				subs[i] = buildComplexFilterVariant(idx)
-				subHashes[i] = Hash(subs[i])
+				subHashes[i] = mustHash(b, subs[i])
 			}
 
 			b.ReportAllocs()
@@ -659,7 +660,7 @@ func BenchmarkFilterNumeric10kCached(b *testing.B) {
 	subs := make([]*protocol.FilterNode, subscribers)
 	for i := 0; i < subscribers; i++ {
 		subs[i] = buildNumericFilter() // each sub has separate pointer
-		hashes[i] = Hash(subs[i])
+		hashes[i] = mustHash(b, subs[i])
 	}
 
 	b.ReportAllocs()
@@ -693,8 +694,8 @@ func TestTagsFilter_FilterHashConsistency(t *testing.T) {
 		Val: "prod",
 	}
 
-	hash1 := Hash(filter1)
-	hash2 := Hash(filter2)
+	hash1 := mustHash(t, filter1)
+	hash2 := mustHash(t, filter2)
 
 	require.Equal(t, hash1, hash2, "Identical filters should produce the same hash")
 
@@ -705,8 +706,31 @@ func TestTagsFilter_FilterHashConsistency(t *testing.T) {
 		Val: "staging",
 	}
 
-	hash3 := Hash(filter3)
+	hash3 := mustHash(t, filter3)
 	require.NotEqual(t, hash1, hash3, "Different filters should produce different hashes")
+}
+
+func TestTagsFilter_FilterHashMatchesProtobufEncoding(t *testing.T) {
+	got := mustHash(t, &protocol.FilterNode{
+		Cmp: CompareEQ,
+		Key: "env",
+		Val: "prod",
+	})
+
+	encoded := []byte{0x12, 0x03, 'e', 'n', 'v', 0x1a, 0x02, 'e', 'q', 0x22, 0x04, 'p', 'r', 'o', 'd'}
+	require.Equal(t, sha256.Sum256(encoded), got)
+}
+
+func TestTagsFilter_FilterHashRejectsNil(t *testing.T) {
+	_, err := Hash(nil)
+	require.EqualError(t, err, "cannot hash a nil filter")
+}
+
+func mustHash(tb testing.TB, f *protocol.FilterNode) [32]byte {
+	tb.Helper()
+	hash, err := Hash(f)
+	require.NoError(tb, err)
+	return hash
 }
 
 func TestFilterMatchErrors(t *testing.T) {

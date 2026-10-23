@@ -4,7 +4,6 @@ package natsbroker
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"math"
 	"strings"
 	"sync"
@@ -31,10 +30,11 @@ type NatsBroker struct {
 	node   *centrifuge.Node
 	config Config
 
-	nc           *nats.Conn
-	subsMu       sync.Mutex
-	subs         map[channelID]*nats.Subscription
-	eventHandler centrifuge.BrokerEventHandler
+	nc             *nats.Conn
+	subsMu         sync.Mutex
+	subs           map[channelID]*nats.Subscription
+	eventHandler   centrifuge.BrokerEventHandler
+	controlHandler centrifuge.ControlEventHandler
 }
 
 // History ...
@@ -73,9 +73,10 @@ func (b *NatsBroker) extractChannel(subject string) string {
 	return strings.TrimPrefix(subject, b.config.Prefix+".client.")
 }
 
-// Run runs broker after node initialized.
-func (b *NatsBroker) Run(h centrifuge.BrokerEventHandler) error {
-	b.eventHandler = h
+func (b *NatsBroker) connect() error {
+	if b.nc != nil {
+		return nil
+	}
 	servers := b.config.Servers
 	if servers == "" {
 		servers = nats.DefaultURL
@@ -86,18 +87,35 @@ func (b *NatsBroker) Run(h centrifuge.BrokerEventHandler) error {
 	}
 	_, err = nc.Subscribe(string(b.controlChannel()), b.handleControl)
 	if err != nil {
+		nc.Close()
 		return err
 	}
 	_, err = nc.Subscribe(string(b.nodeChannel(b.node.ID())), b.handleControl)
 	if err != nil {
+		nc.Close()
 		return err
 	}
 	b.nc = nc
 	return nil
 }
 
-// Close is not implemented.
+// RegisterBrokerEventHandler - see centrifuge.Broker.
+func (b *NatsBroker) RegisterBrokerEventHandler(h centrifuge.BrokerEventHandler) error {
+	b.eventHandler = h
+	return b.connect()
+}
+
+// RegisterControlEventHandler - see centrifuge.Controller.
+func (b *NatsBroker) RegisterControlEventHandler(h centrifuge.ControlEventHandler) error {
+	b.controlHandler = h
+	return b.connect()
+}
+
+// Close closes the NATS connection.
 func (b *NatsBroker) Close(_ context.Context) error {
+	if b.nc != nil {
+		b.nc.Close()
+	}
 	return nil
 }
 
@@ -191,7 +209,7 @@ func (b *NatsBroker) handleClientMessage(subject string, data []byte) error {
 		if err != nil {
 			return err
 		}
-		_ = b.eventHandler.HandlePublication(channel, &pub, centrifuge.StreamPosition{}, nil)
+		_ = b.eventHandler.HandlePublication(channel, &pub, centrifuge.StreamPosition{}, false, nil)
 	case joinPushType:
 		var info centrifuge.ClientInfo
 		err := json.Unmarshal(p.Data, &info)
@@ -216,7 +234,7 @@ func (b *NatsBroker) handleClient(m *nats.Msg) {
 }
 
 func (b *NatsBroker) handleControl(m *nats.Msg) {
-	_ = b.eventHandler.HandleControl(m.Data)
+	_ = b.controlHandler.HandleControl(m.Data)
 }
 
 // Subscribe - see centrifuge.Broker interface description.

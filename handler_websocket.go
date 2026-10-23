@@ -171,12 +171,10 @@ func (s *WebsocketHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		writeTimeout = 1 * time.Second
 	}
 	messageSizeLimit := s.config.MessageSizeLimit
-	if messageSizeLimit == 0 {
+	if messageSizeLimit <= 0 {
 		messageSizeLimit = 65536 // 64KB
 	}
-	if messageSizeLimit > 0 {
-		conn.SetReadLimit(int64(messageSizeLimit))
-	}
+	conn.SetReadLimit(int64(messageSizeLimit))
 
 	if useFramePingPong {
 		pongTimeout := s.config.PingPongConfig.PongTimeout
@@ -244,7 +242,7 @@ func (s *WebsocketHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 				}
 				break
 			}
-			proceed := HandleReadFrame(c, r)
+			proceed := handleReadFrame(c, r, messageSizeLimit)
 			if !proceed {
 				break
 			}
@@ -274,10 +272,14 @@ func (s *WebsocketHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 // HandleReadFrame is a helper to read Centrifuge commands from frame-based io.Reader and
 // process them. Frame-based means that EOF treated as the end of the frame, not the entire
-// connection close.
+// connection close. The default maximum command size is 64KB.
 func HandleReadFrame(c *Client, r io.Reader) bool {
+	return handleReadFrame(c, r, 64*1024)
+}
+
+func handleReadFrame(c *Client, r io.Reader, messageSizeLimit int) bool {
 	protoType := c.Transport().Protocol().toProto()
-	decoder := protocol.GetStreamCommandDecoder(protoType, r)
+	decoder := protocol.GetStreamCommandDecoderLimited(protoType, r, int64(messageSizeLimit))
 	defer protocol.PutStreamCommandDecoder(protoType, decoder)
 
 	hadCommands := false

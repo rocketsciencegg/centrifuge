@@ -50,6 +50,10 @@ func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	maxBytesSize := h.config.MaxRequestBodySize
+	if maxBytesSize == 0 {
+		maxBytesSize = defaultMaxSSEBodySize
+	}
 	var requestData []byte
 	if r.Method == http.MethodGet {
 		requestDataString := r.URL.Query().Get(connectUrlParam)
@@ -61,10 +65,6 @@ func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else if r.Method == http.MethodPost {
-		maxBytesSize := h.config.MaxRequestBodySize
-		if maxBytesSize == 0 {
-			maxBytesSize = defaultMaxSSEBodySize
-		}
 		r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytesSize))
 		var err error
 		requestData, err = io.ReadAll(r.Body)
@@ -128,7 +128,7 @@ func (h *SSEHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_ = rc.SetWriteDeadline(time.Time{})
 
 	reader := readerpool.GetBytesReader(requestData)
-	_ = HandleReadFrame(c, reader)
+	_ = handleReadFrame(c, reader, maxBytesSize)
 	readerpool.PutBytesReader(reader)
 
 	sendAck := func() {
