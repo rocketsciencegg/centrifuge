@@ -3351,7 +3351,8 @@ func (c *Client) makeRecoveredPubsDeltaFossil(recoveredPubs []*protocol.Publicat
 	// Probably during recovery we should not make deltas? This is something to investigate, in
 	// RecoveryModeCache case this won't be used since there is only one publication max recovered.
 	if len(recoveredPubs) > 1 {
-		for i, pub := range recoveredPubs[1:] {
+		for i := 1; i < len(recoveredPubs); i++ {
+			pub := recoveredPubs[i]
 			patch := fdelta.Create(prevPub.Data, pub.Data)
 			delta := true
 			deltaData := patch
@@ -3369,8 +3370,8 @@ func (c *Client) makeRecoveredPubsDeltaFossil(recoveredPubs []*protocol.Publicat
 				Tags:   pub.Tags,
 				Delta:  delta,
 			}
-			prevPub = recoveredPubs[i+1]
-			recoveredPubs[i+1] = deltaPub
+			prevPub = recoveredPubs[i]
+			recoveredPubs[i] = deltaPub
 		}
 	}
 	return recoveredPubs

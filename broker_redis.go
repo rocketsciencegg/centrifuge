@@ -329,12 +329,16 @@ func (b *RedisBroker) RegisterBrokerEventHandler(h BrokerEventHandler) error {
 	}
 	for i := 0; i < len(b.shards); i++ {
 		if b.shards[i].controlPubSubStart != nil {
-			<-b.shards[i].controlPubSubStart.errCh
+			if err := <-b.shards[i].controlPubSubStart.errCh; err != nil {
+				return err
+			}
 		}
 		for j := 0; j < len(b.shards[i].pubSubStartChannels); j++ {
 			for k := 0; k < len(b.shards[i].pubSubStartChannels[j]); k++ {
 				if !b.config.SkipPubSub {
-					<-b.shards[i].pubSubStartChannels[j][k].errCh
+					if err := <-b.shards[i].pubSubStartChannels[j][k].errCh; err != nil {
+						return err
+					}
 				}
 			}
 		}

@@ -164,7 +164,9 @@ func BenchmarkCompareCompile_FilterNode(b *testing.B) {
 func BenchmarkCompareCompile_FilterNodeHash(b *testing.B) {
 	for b.Loop() {
 		f := buildTestCompareFilter()
-		Hash(f)
+		if _, err := Hash(f); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
