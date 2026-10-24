@@ -1,6 +1,5 @@
 [![Join the chat at https://t.me/joinchat/ABFVWBE0AhkyyhREoaboXQ](https://img.shields.io/badge/Telegram-Group-blue.svg)](https://t.me/joinchat/ABFVWBE0AhkyyhREoaboXQ)
 [![Build Status](https://github.com/centrifugal/centrifuge/workflows/build/badge.svg?branch=master)](https://github.com/centrifugal/centrifuge/actions)
-[![codecov.io](https://codecov.io/gh/centrifugal/centrifuge/branch/master/graphs/badge.svg)](https://codecov.io/github/centrifugal/centrifuge?branch=master)
 [![GoDoc](https://pkg.go.dev/badge/centrifugal/centrifuge)](https://pkg.go.dev/github.com/centrifugal/centrifuge)
 
 **This library has no v1 release, API still evolves. Use with strict versioning.** Before v1 release patch version updates only have backwards compatible changes and fixes, minor version updates can have backwards-incompatible API changes. For all breaking changes we provide a detailed changelog. Master branch can have unreleased code. Only two last Go minor versions are officially supported by this library.
