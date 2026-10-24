@@ -7,57 +7,76 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRedisBrokerRunStartupErrors(t *testing.T) {
-	startupErr := errors.New("temporary subscription failure")
-	for _, tt := range []struct {
-		name       string
-		controlErr error
-		pubSubErr  error
-		logs       int
-	}{
-		{name: "success"},
-		{name: "control failure", controlErr: startupErr, logs: 1},
-		{name: "pubsub failure", pubSubErr: startupErr, logs: 1},
-		{name: "both failures", controlErr: startupErr, pubSubErr: startupErr, logs: 2},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			var entries []LogEntry
-			node, err := New(Config{
-				LogLevel: LogLevelError,
-				LogHandler: func(entry LogEntry) {
-					entries = append(entries, entry)
-				},
-			})
-			require.NoError(t, err)
+var errRedisStartup = errors.New("temporary subscription failure")
 
-			controlCh := make(chan error, 1)
-			controlCh <- tt.controlErr
-			pubSubCh := make(chan error, 1)
-			pubSubCh <- tt.pubSubErr
-			broker := &RedisBroker{
-				node:   node,
-				config: RedisBrokerConfig{UseLists: true},
-				shards: []*shardWrapper{{
-					shard:              &RedisShard{},
-					controlPubSubStart: &controlPubSubStart{errCh: controlCh},
-					pubSubStartChannels: [][]*pubSubStart{{
-						{errCh: pubSubCh},
-					}},
-				}},
-				closeCh: make(chan struct{}),
-			}
-			// Supply completed startup attempts without launching Redis connections.
-			close(broker.closeCh)
+// runRedisBrokerWithStartupResults runs a broker whose startup channels already
+// hold the given results, without launching Redis connections.
+func runRedisBrokerWithStartupResults(t *testing.T, controlErr, pubSubErr error) []LogEntry {
+	t.Helper()
 
-			require.NoError(t, broker.Run(nil))
-			require.Empty(t, controlCh)
-			require.Empty(t, pubSubCh)
-			require.Len(t, entries, tt.logs)
-			for _, entry := range entries {
-				require.Equal(t, LogLevelError, entry.Level)
-				require.Equal(t, startupErr.Error(), entry.Fields["error"])
-				require.Equal(t, 0, entry.Fields["shard"])
-			}
-		})
+	var entries []LogEntry
+	node, err := New(Config{
+		LogLevel: LogLevelError,
+		LogHandler: func(entry LogEntry) {
+			entries = append(entries, entry)
+		},
+	})
+	require.NoError(t, err)
+
+	controlCh := make(chan error, 1)
+	controlCh <- controlErr
+	pubSubCh := make(chan error, 1)
+	pubSubCh <- pubSubErr
+	broker := &RedisBroker{
+		node:   node,
+		config: RedisBrokerConfig{UseLists: true},
+		shards: []*shardWrapper{{
+			shard:              &RedisShard{},
+			controlPubSubStart: &controlPubSubStart{errCh: controlCh},
+			pubSubStartChannels: [][]*pubSubStart{{
+				{errCh: pubSubCh},
+			}},
+		}},
+		closeCh: make(chan struct{}),
 	}
+	close(broker.closeCh)
+
+	require.NoError(t, broker.Run(nil))
+	require.Empty(t, controlCh)
+	require.Empty(t, pubSubCh)
+	return entries
+}
+
+func requireRedisStartupErrorLogged(t *testing.T, entry LogEntry, message string) {
+	t.Helper()
+	require.Equal(t, LogLevelError, entry.Level)
+	require.Equal(t, message, entry.Message)
+	require.Equal(t, errRedisStartup.Error(), entry.Fields["error"])
+	require.Equal(t, 0, entry.Fields["shard"])
+}
+
+func TestRedisBrokerRunStartupSuccess(t *testing.T) {
+	entries := runRedisBrokerWithStartupResults(t, nil, nil)
+	require.Empty(t, entries)
+}
+
+func TestRedisBrokerRunLogsControlStartupError(t *testing.T) {
+	entries := runRedisBrokerWithStartupResults(t, errRedisStartup, nil)
+	require.Len(t, entries, 1)
+	requireRedisStartupErrorLogged(t, entries[0], "control pub/sub startup error")
+}
+
+func TestRedisBrokerRunLogsPubSubStartupError(t *testing.T) {
+	entries := runRedisBrokerWithStartupResults(t, nil, errRedisStartup)
+	require.Len(t, entries, 1)
+	requireRedisStartupErrorLogged(t, entries[0], "pub/sub startup error")
+	require.Equal(t, 0, entries[0].Fields["clusterShard"])
+	require.Equal(t, 0, entries[0].Fields["pubSubShard"])
+}
+
+func TestRedisBrokerRunLogsAllStartupErrors(t *testing.T) {
+	entries := runRedisBrokerWithStartupResults(t, errRedisStartup, errRedisStartup)
+	require.Len(t, entries, 2)
+	requireRedisStartupErrorLogged(t, entries[0], "control pub/sub startup error")
+	requireRedisStartupErrorLogged(t, entries[1], "pub/sub startup error")
 }
