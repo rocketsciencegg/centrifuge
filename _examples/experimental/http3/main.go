@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/centrifugal/centrifuge"
-	"github.com/quic-go/quic-go/http3"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/quic-go/quic-go/http3"
 )
 
 var (
@@ -267,7 +267,7 @@ func main() {
 	mux.Handle("/", http.FileServer(http.Dir("./")))
 
 	go func() {
-		if err := http3.ListenAndServeQUIC(":"+strconv.Itoa(*port), "certs/localhost.pem", "certs/localhost-key.pem", mux); err != nil {
+		if err := http3.ListenAndServeTLS(":"+strconv.Itoa(*port), "certs/localhost.pem", "certs/localhost-key.pem", mux); err != nil {
 			log.Fatal(err)
 		}
 	}()
