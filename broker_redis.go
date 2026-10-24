@@ -400,12 +400,12 @@ func (b *RedisBroker) Run(h BrokerEventHandler) error {
 	}
 	for i := 0; i < len(b.shards); i++ {
 		if err := <-b.shards[i].controlPubSubStart.errCh; err != nil {
-			return err
+			b.node.Log(NewLogEntry(LogLevelError, "control pub/sub startup error", map[string]any{"error": err.Error(), "shard": i}))
 		}
 		for j := 0; j < len(b.shards[i].pubSubStartChannels); j++ {
 			for k := 0; k < len(b.shards[i].pubSubStartChannels[j]); k++ {
 				if err := <-b.shards[i].pubSubStartChannels[j][k].errCh; err != nil {
-					return err
+					b.node.Log(NewLogEntry(LogLevelError, "pub/sub startup error", map[string]any{"error": err.Error(), "shard": i, "clusterShard": j, "pubSubShard": k}))
 				}
 			}
 		}
