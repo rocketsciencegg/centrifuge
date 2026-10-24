@@ -4,6 +4,7 @@ package centrifuge
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -1599,4 +1600,80 @@ func BenchmarkPubSubThroughput(b *testing.B) {
 			})
 		})
 	}
+}
+
+func TestRedisBroker_Run(t *testing.T) {
+	startupErr := errors.New("temporary subscription failure")
+
+	// setup returns a broker whose startup channels already hold the given
+	// results, so Run completes without launching Redis connections.
+	setup := func(t *testing.T, controlErr, pubSubErr error) (*RedisBroker, *[]LogEntry) {
+		t.Helper()
+		var entries []LogEntry
+		node, err := New(Config{
+			LogLevel: LogLevelError,
+			LogHandler: func(entry LogEntry) {
+				entries = append(entries, entry)
+			},
+		})
+		require.NoError(t, err)
+
+		controlCh := make(chan error, 1)
+		controlCh <- controlErr
+		pubSubCh := make(chan error, 1)
+		pubSubCh <- pubSubErr
+		broker := &RedisBroker{
+			node:   node,
+			config: RedisBrokerConfig{UseLists: true},
+			shards: []*shardWrapper{{
+				shard:              &RedisShard{},
+				controlPubSubStart: &controlPubSubStart{errCh: controlCh},
+				pubSubStartChannels: [][]*pubSubStart{{
+					{errCh: pubSubCh},
+				}},
+			}},
+			closeCh: make(chan struct{}),
+		}
+		close(broker.closeCh)
+		return broker, &entries
+	}
+
+	controlErrEntry := LogEntry{
+		Level:   LogLevelError,
+		Message: "control pub/sub startup error",
+		Fields:  map[string]any{"error": startupErr.Error(), "shard": 0},
+	}
+	pubSubErrEntry := LogEntry{
+		Level:   LogLevelError,
+		Message: "pub/sub startup error",
+		Fields:  map[string]any{"error": startupErr.Error(), "shard": 0, "clusterShard": 0, "pubSubShard": 0},
+	}
+
+	t.Run("success", func(t *testing.T) {
+		broker, entries := setup(t, nil, nil)
+		err := broker.Run(nil)
+		require.NoError(t, err)
+		require.Empty(t, *entries)
+	})
+
+	t.Run("logs-control-error", func(t *testing.T) {
+		broker, entries := setup(t, startupErr, nil)
+		err := broker.Run(nil)
+		require.NoError(t, err)
+		require.Equal(t, []LogEntry{controlErrEntry}, *entries)
+	})
+
+	t.Run("logs-pubsub-error", func(t *testing.T) {
+		broker, entries := setup(t, nil, startupErr)
+		err := broker.Run(nil)
+		require.NoError(t, err)
+		require.Equal(t, []LogEntry{pubSubErrEntry}, *entries)
+	})
+
+	t.Run("logs-all-errors", func(t *testing.T) {
+		broker, entries := setup(t, startupErr, startupErr)
+		err := broker.Run(nil)
+		require.NoError(t, err)
+		require.Equal(t, []LogEntry{controlErrEntry, pubSubErrEntry}, *entries)
+	})
 }

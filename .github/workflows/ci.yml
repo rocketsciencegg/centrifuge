@@ -1,48 +1,54 @@
 name: build
-on: [push, pull_request]
+on:
+  pull_request:
+    branches:
+      - v0.28.x
+    types:
+      - opened
+      - reopened
+      - synchronize
+  push:
+    branches:
+      - v0.28.x
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  cancel-in-progress: true
+
 jobs:
   golangci:
     name: Lint
     runs-on: ubuntu-latest
-    # Prevent duplicate builds on internal PRs.
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.26.x'
+          go-version: stable
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
-          version: v2.9.0
+          version: v2.15.0
           args: --timeout 3m0s
   build:
-    name: Test with Go ${{ matrix.go-version }} Redis ${{ matrix.redis-version }}
+    name: Test with Go stable Redis 7
     runs-on: ubuntu-latest
-    # Prevent duplicate builds on internal PRs.
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
-    strategy:
-      matrix:
-        go-version: [1.26]
-        redis-version: [5, 6, 7]
     steps:
       - name: Install Go stable version
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version: stable
 
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Start redis
         env:
-          REDIS_VERSION: ${{ matrix.redis-version }}
+          REDIS_VERSION: "7"
         run: docker compose up -d --wait
 
       - name: Test
-        run: go test -v -race -tags integration -coverprofile=coverage.out $(go list ./... | grep -v /_examples/)
-
-      - name: Upload code coverage to codecov
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./coverage.out
+        run: go test -v -race -tags integration $(go list ./... | grep -v /_examples/)

@@ -144,10 +144,10 @@ func (c *MultiConnection) IsLeader(conn *tarantool.Connection) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if len(resp.Data) < 1 {
+	if len(resp) < 1 {
 		return false, errors.New("unexpected leader check result")
 	}
-	isLeader, ok := resp.Data[0].(bool)
+	isLeader, ok := resp[0].(bool)
 	if !ok {
 		return false, errors.New("malformed leader check result")
 	}
