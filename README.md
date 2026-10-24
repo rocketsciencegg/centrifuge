@@ -2,7 +2,7 @@
 [![Build Status](https://github.com/centrifugal/centrifuge/workflows/build/badge.svg?branch=master)](https://github.com/centrifugal/centrifuge/actions)
 [![GoDoc](https://pkg.go.dev/badge/centrifugal/centrifuge)](https://pkg.go.dev/github.com/centrifugal/centrifuge)
 
-**This library has no v1 release, API still evolves. Use with strict versioning.** Before v1 release patch version updates only have backwards compatible changes and fixes, minor version updates can have backwards-incompatible API changes. For all breaking changes we provide a detailed changelog. Master branch can have unreleased code. Only two last Go minor versions are officially supported by this library.
+**This library has no v1 release, API still evolves. Use with strict versioning.** Before v1 release patch version updates only have backwards compatible changes and fixes, minor version updates can have backwards-incompatible API changes. For all breaking changes we provide a detailed changelog. Master branch can have unreleased code. This fork is maintained for compatibility with our internal applications and is tested only with the latest stable Go release.
 
 Centrifuge library is a real-time core of [Centrifugo](https://github.com/centrifugal/centrifugo) server. It's also supposed to be a general purpose real-time messaging library for Go programming language. The library built on top of strict client-server protocol schema and exposes various real-time oriented primitives for a developer. Centrifuge solves several problems a developer may come across when building complex real-time applications – like scalability (millions of connections), proper persistent connection management and invalidation, fast reconnect with message recovery, WebSocket fallback option.
 

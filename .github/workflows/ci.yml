@@ -23,7 +23,7 @@ jobs:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       matrix:
-        go-version: ["oldstable", "stable"]
+        go-version: ["stable"]
         redis-version: [7]
     steps:
       - name: Install Go stable version
