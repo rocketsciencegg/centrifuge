@@ -62,10 +62,10 @@ func (m PresenceManager) Presence(ch string) (map[string]*centrifuge.ClientInfo,
 	if err != nil {
 		return nil, err
 	}
-	if len(res.Data) == 0 {
+	if len(res) == 0 {
 		return nil, errors.New("malformed presence result")
 	}
-	presenceInterfaceSlice, ok := res.Data[0].([]interface{})
+	presenceInterfaceSlice, ok := res[0].([]any)
 	if !ok {
 		return nil, errors.New("malformed presence format: map expected")
 	}
